@@ -16,6 +16,7 @@
  */
 package org.apache.rocketmq.broker;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -185,7 +186,11 @@ public class BrokerController {
         this.nettyServerConfig = nettyServerConfig;
         this.nettyClientConfig = nettyClientConfig;
         this.messageStoreConfig = messageStoreConfig;
-        this.consumerOffsetManager = messageStoreConfig.isEnableLmq() ? new LmqConsumerOffsetManager(this) : new ConsumerOffsetManager(this);
+        if (messageStoreConfig.isEnableLmq() || checkLmqOffsetFile()) {
+            this.consumerOffsetManager = new LmqConsumerOffsetManager(this);
+        } else {
+            this.consumerOffsetManager = new ConsumerOffsetManager(this);
+        }
         this.topicConfigManager = messageStoreConfig.isEnableLmq() ? new LmqTopicConfigManager(this) : new TopicConfigManager(this);
         this.pullMessageProcessor = new PullMessageProcessor(this);
         this.pullRequestHoldService = messageStoreConfig.isEnableLmq() ? new LmqPullRequestHoldService(this) : new PullRequestHoldService(this);
@@ -222,6 +227,12 @@ public class BrokerController {
             BrokerPathConfigHelper.getBrokerConfigPath(),
             this.brokerConfig, this.nettyServerConfig, this.nettyClientConfig, this.messageStoreConfig
         );
+    }
+
+    private boolean checkLmqOffsetFile() {
+        String lmqConsumerOffsetPath = BrokerPathConfigHelper.getLmqConsumerOffsetPath(messageStoreConfig.getStorePathRootDir());
+        File file = new File(lmqConsumerOffsetPath);
+        return file.exists();
     }
 
     public BrokerConfig getBrokerConfig() {
